@@ -1,0 +1,93 @@
+buildscript {
+    repositories {
+        maven {
+            url 'https://plugins.gradle.org/m2/'
+        }
+    }
+    dependencies {
+        classpath 'gradle.plugin.org.jruyi.gradle:thrift-gradle-plugin:0.4.0'
+        classpath 'gradle.plugin.com.github.honourednihilist:gradle-kafka-deserializers:0.1.0'
+    }
+}
+
+subprojects {
+    group = 'com.github.honourednihilist'
+
+    apply plugin: 'java'
+
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+
+    compileJava {
+        options.encoding = 'UTF-8'
+    }
+
+    compileTestJava {
+        options.encoding = 'UTF-8'
+    }
+
+    repositories {
+        jcenter()
+        mavenCentral()
+    }
+
+    dependencies {
+        compile(group: 'ch.qos.logback', name: 'logback-classic', version: '1.2.3')
+    }
+}
+
+project('thrift-model') {
+    apply plugin: 'org.jruyi.thrift'
+
+    compileThrift {
+        if (System.getenv('THRIFT') != null) thriftExecutable = System.getenv('THRIFT')
+    }
+
+    dependencies {
+        compile(group: 'org.apache.thrift', name: 'libthrift', version: '0.9.3') {
+            transitive = false
+        }
+    }
+}
+
+project('kafka-deserializers') {
+
+    dependencies {
+        compile project(':thrift-model')
+        compile(group: 'org.apache.kafka', name: 'kafka-clients', version: '0.10.0.1') {
+            transitive = false
+        }
+    }
+
+    apply plugin: 'com.github.honourednihilist.gradle-kafka-deserializers'
+
+    Task compileThriftTask = project(':thrift-model').tasks.getByName('compileThrift')
+
+    kafkaDeserializers {
+        sourceItems = compileThriftTask.getOutputs().files
+    }
+
+    generateThriftKafkaDeserializers.dependsOn(compileThriftTask)
+
+    configurations {
+        jar {
+            extendsFrom runtime
+            exclude group: 'ch.qos.logback'
+            exclude group: 'org.slf4j'
+            exclude group: 'org.apache.kafka'
+        }
+    }
+
+    jar {
+        from {
+            configurations.jar.collect {
+                it.isDirectory() ? it : zipTree(it)
+            }
+        }
+    }
+
+}
+
+gradle.buildFinished {
+    println('\nFinished: ' + new Date())
+}

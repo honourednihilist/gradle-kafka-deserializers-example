@@ -1,0 +1,3 @@
+rootProject.name = 'gradle-kafka-deserializers-example'
+
+include 'thrift-model', 'kafka-deserializers'
